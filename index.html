@@ -1,0 +1,1391 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cantina - Se aventurando no sabor</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/qrcode-generator@1.4.4/qrcode.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .qr-code { image-rendering: pixelated; }
+        
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            .print-section, .print-section * {
+                visibility: visible;
+            }
+            .print-section {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                padding: 20px;
+                background: white;
+            }
+            .no-print {
+                display: none !important;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // --- Dados do cardápio ---
+        const MENU = [
+            // Hambúrgueres
+            { id: 'h1', category: 'Hambúrgueres', name: 'Hambúrguer', price: 10.0, desc: 'Pão, hambúrguer, alface, tomate.', emoji: '🍔' },
+            { id: 'h2', category: 'Hambúrgueres', name: 'Egg Burguer', price: 13.0, desc: 'Hambúrguer com ovo frito.', emoji: '🍳' },
+            { id: 'h3', category: 'Hambúrgueres', name: 'Bacon Burguer', price: 14.0, desc: 'Hambúrguer com bacon crocante.', emoji: '🥓' },
+            { id: 'h4', category: 'Hambúrgueres', name: 'X Burguer', price: 14.0, desc: 'Hambúrguer com queijo.', emoji: '🧀' },
+            { id: 'h5', category: 'Hambúrgueres', name: 'Egg Bacon Burguer', price: 16.0, desc: 'Hambúrguer com ovo e bacon.', emoji: '🍳' },
+            { id: 'h6', category: 'Hambúrgueres', name: 'X Bacon Burguer', price: 17.0, desc: 'Hambúrguer com queijo e bacon.', emoji: '🥓' },
+            { id: 'h7', category: 'Hambúrgueres', name: 'X Calabresa', price: 17.0, desc: 'Hambúrguer com queijo e calabresa.', emoji: '🌶️' },
+            { id: 'h8', category: 'Hambúrgueres', name: 'X Egg Burguer', price: 16.0, desc: 'Hambúrguer com queijo e ovo.', emoji: '🍳' },
+            { id: 'h9', category: 'Hambúrgueres', name: 'Americano', price: 18.0, desc: 'Hambúrguer especial americano.', emoji: '🇺🇸' },
+            { id: 'h10', category: 'Hambúrgueres', name: 'X Egg Bacon', price: 18.0, desc: 'Hambúrguer com queijo, ovo e bacon.', emoji: '🍳' },
+            { id: 'h11', category: 'Hambúrgueres', name: 'X Egg Calabresa', price: 17.0, desc: 'Hambúrguer com queijo, ovo e calabresa.', emoji: '🌶️' },
+            { id: 'h12', category: 'Hambúrgueres', name: 'X Tudo', price: 25.0, desc: 'Hambúrguer completo com todos os ingredientes.', emoji: '🍔' },
+            
+            // Bebidas - Refrigerantes
+            { id: 'r1', category: 'Bebidas', name: 'Refrigerante Lata', price: 6.0, desc: 'Refrigerante 350ml - escolha o sabor.', emoji: '🥤', 
+              options: ['Guaraná', 'Coca Cola', 'Coca Zero'] },
+            { id: 'r2', category: 'Bebidas', name: 'Refrigerante 600ml', price: 8.0, desc: 'Refrigerante 600ml - escolha o sabor.', emoji: '🥤',
+              options: ['Guaraná', 'Coca Cola', 'Coca Zero', 'Fanta Laranja', 'Sprite'] },
+            { id: 'r3', category: 'Bebidas', name: 'Refrigerante 2L', price: 8.0, desc: 'Refrigerante 2 litros - escolha o sabor.', emoji: '🥤',
+              options: ['Guaraná', 'Coca Cola', 'Coca Zero', 'Fanta Laranja', 'Sprite'] },
+            { id: 'r4', category: 'Bebidas', name: 'Refrigerante 1,5L', price: 10.0, desc: 'Refrigerante 1,5 litros - escolha o sabor.', emoji: '🥤',
+              options: ['Guaraná', 'Coca Cola', 'Coca Zero', 'Fanta Laranja', 'Sprite'] },
+            
+            // Bebidas - Sucos
+            { id: 's1', category: 'Bebidas', name: 'Suco de Polpa', price: 8.0, desc: 'Suco natural de polpa - escolha o sabor.', emoji: '🧃',
+              options: ['Maracujá', 'Morango', 'Abacaxi', 'Acerola', 'Graviola', 'Manga'] },
+            
+            // Bebidas - Vitaminas
+            { id: 'v1', category: 'Bebidas', name: 'Vitamina', price: 9.0, desc: 'Vitamina com leite - escolha o sabor.', emoji: '🥤',
+              options: ['Maracujá', 'Morango', 'Abacaxi', 'Acerola', 'Graviola', 'Manga'] },
+            
+            // Bebidas - Outras
+            { id: 'h2o', category: 'Bebidas', name: 'H2O Limoneto', price: 8.0, desc: 'H2O sabor limoneto.', emoji: '🍋' },
+            
+            // Lanches Artesanais
+            { id: 'la1', category: 'Lanches Artesanais', name: 'Caseiro Cheddar', price: 13.0, desc: 'Pão, bife, cheddar, cebola caramelizada, alface e tomate.', emoji: '🍔' },
+            { id: 'la2', category: 'Lanches Artesanais', name: 'X Caseiro Cheddar', price: 15.0, desc: 'Pão, bife, cheddar, cebola caramelizada, alface, tomate e queijo.', emoji: '🧀' },
+            { id: 'la3', category: 'Lanches Artesanais', name: 'X Bacon Caseiro Cheddar', price: 17.0, desc: 'Pão, bife, cheddar, cebola caramelizada, alface, tomate, queijo e bacon.', emoji: '🥓' },
+            { id: 'la4', category: 'Lanches Artesanais', name: 'Triplo Picanha Cheddar Bacon', price: 24.0, desc: 'Pão, 3 bifes de picanha, cheddar, cebola caramelizada e bacon.', emoji: '🍖' },
+            
+            // Lanches com Picanha
+            { id: 'lp1', category: 'Lanches com Picanha', name: 'Hambúrguer Picanha', price: 11.0, desc: 'Pão, bife de picanha, alface, tomate.', emoji: '🍔' },
+            { id: 'lp2', category: 'Lanches com Picanha', name: 'Egg Picanha', price: 14.0, desc: 'Pão, bife de picanha, ovo frito, alface, tomate.', emoji: '🍳' },
+            { id: 'lp3', category: 'Lanches com Picanha', name: 'Bacon Picanha', price: 15.0, desc: 'Pão, bife de picanha, bacon crocante, alface, tomate.', emoji: '🥓' },
+            { id: 'lp4', category: 'Lanches com Picanha', name: 'X Picanha', price: 16.0, desc: 'Pão, bife de picanha, queijo, alface, tomate.', emoji: '🧀' },
+            { id: 'lp5', category: 'Lanches com Picanha', name: 'Egg Bacon Picanha', price: 18.0, desc: 'Pão, bife de picanha, ovo, bacon, alface, tomate.', emoji: '🍳' },
+            { id: 'lp6', category: 'Lanches com Picanha', name: 'X Egg Picanha', price: 18.0, desc: 'Pão, bife de picanha, queijo, ovo, alface, tomate.', emoji: '🧀' },
+            { id: 'lp7', category: 'Lanches com Picanha', name: 'X Picanha Calabresa', price: 18.0, desc: 'Pão, bife de picanha, queijo, calabresa, alface, tomate.', emoji: '🌶️' },
+            { id: 'lp8', category: 'Lanches com Picanha', name: 'X Egg Bacon Picanha', price: 19.0, desc: 'Pão, bife de picanha, queijo, ovo, bacon, alface, tomate.', emoji: '🍳' },
+            { id: 'lp9', category: 'Lanches com Picanha', name: 'Americano Picanha', price: 21.0, desc: 'Pão, bife de picanha especial, queijo, alface, tomate.', emoji: '🇺🇸' },
+            { id: 'lp10', category: 'Lanches com Picanha', name: 'X Tudo Picanha', price: 27.0, desc: 'Pão, bife de picanha com todos os ingredientes.', emoji: '🍖' },
+            
+            // Lanches com Frango
+            { id: 'lf1', category: 'Lanches com Frango', name: 'Cocó', price: 11.0, desc: 'Pão, filé de frango, alface, tomate, milho, batata palha e banana.', emoji: '🍗' },
+            { id: 'lf2', category: 'Lanches com Frango', name: 'Egg Cocó', price: 13.0, desc: 'Pão, filé de frango, alface, tomate, milho, batata palha, banana e ovo.', emoji: '🍳' },
+            { id: 'lf3', category: 'Lanches com Frango', name: 'Bacon Cocó', price: 15.0, desc: 'Pão, filé de frango, alface, tomate, milho, batata palha, banana e bacon.', emoji: '🥓' },
+            { id: 'lf4', category: 'Lanches com Frango', name: 'X Cocó', price: 16.0, desc: 'Pão, filé de frango, alface, tomate, milho, batata palha, banana e queijo.', emoji: '🧀' },
+            { id: 'lf5', category: 'Lanches com Frango', name: 'Egg Bacon Cocó', price: 18.0, desc: 'Pão, filé de frango, alface, tomate, milho, batata palha, banana, bacon e ovo.', emoji: '🍳' },
+            { id: 'lf6', category: 'Lanches com Frango', name: 'X Bacon Cocó', price: 18.0, desc: 'Pão, filé de frango, alface, tomate, milho, batata palha, banana, bacon e queijo.', emoji: '🥓' },
+            { id: 'lf7', category: 'Lanches com Frango', name: 'X Egg Cocó', price: 17.0, desc: 'Pão, filé de frango, alface, tomate, milho, batata palha, banana, queijo e ovo.', emoji: '🧀' },
+            { id: 'lf8', category: 'Lanches com Frango', name: 'X Calabresa Cocó', price: 17.0, desc: 'Pão, filé de frango, alface, tomate, milho, batata palha, banana, calabresa e queijo.', emoji: '🌶️' },
+            { id: 'lf9', category: 'Lanches com Frango', name: 'Americano Cocó', price: 21.0, desc: 'Pão, 2x filé de frango, 2x queijo, 2x presunto e 2x ovo.', emoji: '🍗' },
+            { id: 'lf10', category: 'Lanches com Frango', name: 'X Tudo Cocó', price: 27.0, desc: 'Pão, 2x filé, banana, alface, tomate, milho, batata palha, 2x queijo, 2x presunto, 2x ovo e bacon.', emoji: '🍗' },
+            
+            // Mistos
+            { id: 'm1', category: 'Mistos', name: 'Misto', price: 10.0, desc: 'Pão, 2x queijo e 2x presunto.', emoji: '🥪' },
+            { id: 'm2', category: 'Mistos', name: 'Misto Egg', price: 12.0, desc: 'Pão, 2x queijo, 2x presunto e ovo.', emoji: '🍳' },
+            { id: 'm3', category: 'Mistos', name: 'Misto Bacon', price: 14.0, desc: 'Pão, 2x queijo, 2x presunto e bacon.', emoji: '🥓' },
+            { id: 'm4', category: 'Mistos', name: 'Misto Bauru', price: 15.0, desc: 'Pão, 2x queijo, 2x presunto, alface, tomate, batata palha, milho e banana.', emoji: '🥪' },
+            { id: 'm5', category: 'Mistos', name: 'Misto Burguer', price: 15.0, desc: 'Pão, 2x queijo, 2x presunto e bife de hambúrguer.', emoji: '🍔' },
+            { id: 'm6', category: 'Mistos', name: 'Misto Egg Bacon', price: 16.0, desc: 'Pão, 2x queijo, 2x presunto, bacon e ovo.', emoji: '🍳' },
+            
+            // Porções
+            { id: 'p1', category: 'Porções', name: 'Anel de Cebola (200g)', price: 12.0, desc: 'Anel de cebola crocante - 200g.', emoji: '🧅' },
+            { id: 'p2', category: 'Porções', name: 'Anel de Cebola (400g)', price: 16.0, desc: 'Anel de cebola crocante - 400g.', emoji: '🧅' },
+            { id: 'p3', category: 'Porções', name: 'Batata Frita (200g)', price: 12.0, desc: 'Batata frita crocante - 200g.', emoji: '🍟' },
+            { id: 'p4', category: 'Porções', name: 'Batata Frita (400g)', price: 16.0, desc: 'Batata frita crocante - 400g.', emoji: '🍟' },
+            { id: 'p5', category: 'Porções', name: 'Batata Bacon e Cheddar (200g)', price: 18.0, desc: 'Batata com bacon e cheddar - 200g.', emoji: '🍟' },
+            { id: 'p6', category: 'Porções', name: 'Batata Bacon e Cheddar (400g)', price: 24.0, desc: 'Batata com bacon e cheddar - 400g.', emoji: '🍟' },
+            { id: 'p7', category: 'Porções', name: 'Porção Cantina', price: 40.0, desc: 'Batata, anel de cebola, bacon, calabresa, catupiry e cheddar.', emoji: '🍽️' },
+        ];
+
+        const CATEGORIES = ['Hambúrgueres', 'Lanches Artesanais', 'Lanches com Picanha', 'Lanches com Frango', 'Mistos', 'Porções', 'Bebidas'];
+        const DELIVERY_FEE = 4.0;
+
+        // --- Helpers ---
+        const currency = (v) => `R$ ${v.toFixed(2).replace('.', ',')}`;
+
+        // QR Code Component
+        function QRCode({ value, size = 200 }) {
+            const [qrDataURL, setQrDataURL] = useState('');
+
+            useEffect(() => {
+                if (value) {
+                    const qr = qrcode(0, 'M');
+                    qr.addData(value);
+                    qr.make();
+                    setQrDataURL(qr.createDataURL(4));
+                }
+            }, [value]);
+
+            return qrDataURL ? (
+                <img src={qrDataURL} alt="QR Code" className="qr-code" style={{width: size, height: size}} />
+            ) : null;
+        }
+
+        // Get table id from query string
+        function useTableId() {
+            const [tableId, setTableId] = useState(null);
+            useEffect(() => {
+                const params = new URLSearchParams(window.location.search);
+                const t = params.get('table');
+                if (t) setTableId(t);
+            }, []);
+            return [tableId, setTableId];
+        }
+
+        // Customization Modal Component
+        function CustomizationModal({ item, onClose, onAdd }) {
+            const [selectedOption, setSelectedOption] = useState(item.options ? item.options[0] : '');
+            const [observations, setObservations] = useState('');
+
+            const handleAdd = () => {
+                const customizedItem = {
+                    ...item,
+                    selectedOption,
+                    observations,
+                    displayName: item.options ? `${item.name} - ${selectedOption}` : item.name,
+                    customId: `${item.id}_${Date.now()}_${Math.random()}`
+                };
+                onAdd(customizedItem);
+                onClose();
+            };
+
+            return (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                    <div className="bg-white rounded-xl max-w-md w-full p-6">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-xl font-bold text-gray-900">{item.name}</h3>
+                            <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
+                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+
+                        <div className="text-center mb-6">
+                            <div className="text-4xl mb-2">{item.emoji}</div>
+                            <p className="text-gray-600 mb-2">{item.desc}</p>
+                            <p className="text-lg font-bold text-sky-600">{currency(item.price)}</p>
+                        </div>
+
+                        {/* Options Selection */}
+                        {item.options && (
+                            <div className="mb-4">
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Escolha o sabor:
+                                </label>
+                                <select
+                                    value={selectedOption}
+                                    onChange={(e) => setSelectedOption(e.target.value)}
+                                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
+                                >
+                                    {item.options.map(option => (
+                                        <option key={option} value={option}>{option}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
+
+                        {/* Observations */}
+                        <div className="mb-6">
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Observações:
+                            </label>
+                            <textarea
+                                value={observations}
+                                onChange={(e) => setObservations(e.target.value)}
+                                placeholder="Ex: Sem cebola, bacon extra, ponto da carne..."
+                                className="w-full border border-gray-300 rounded-lg px-3 py-2 h-20 resize-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
+                            />
+                        </div>
+
+                        <div className="flex gap-3">
+                            <button
+                                onClick={onClose}
+                                className="flex-1 bg-gray-200 text-gray-800 py-3 px-4 rounded-lg font-medium hover:bg-gray-300 transition-colors"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={handleAdd}
+                                className="flex-1 bg-sky-500 text-white py-3 px-4 rounded-lg font-medium hover:bg-sky-600 transition-colors"
+                            >
+                                Adicionar ao Carrinho
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // Delivery Information Modal Component
+        function DeliveryModal({ onClose, onConfirm }) {
+            const [formData, setFormData] = useState({
+                name: '',
+                phone: '',
+                street: '',
+                number: '',
+                complement: '',
+                neighborhood: '',
+                city: '',
+                zipcode: ''
+            });
+            const [errors, setErrors] = useState({});
+
+            const validateForm = () => {
+                const newErrors = {};
+                if (!formData.name.trim()) newErrors.name = 'Nome é obrigatório';
+                if (!formData.phone.trim()) newErrors.phone = 'Telefone é obrigatório';
+                if (!formData.street.trim()) newErrors.street = 'Rua é obrigatória';
+                if (!formData.number.trim()) newErrors.number = 'Número é obrigatório';
+                if (!formData.neighborhood.trim()) newErrors.neighborhood = 'Bairro é obrigatório';
+                if (!formData.city.trim()) newErrors.city = 'Cidade é obrigatória';
+                if (!formData.zipcode.trim()) newErrors.zipcode = 'CEP é obrigatório';
+                
+                setErrors(newErrors);
+                return Object.keys(newErrors).length === 0;
+            };
+
+            const handleSubmit = () => {
+                if (validateForm()) {
+                    onConfirm(formData);
+                }
+            };
+
+            const handleChange = (e) => {
+                const { name, value } = e.target;
+                setFormData(prev => ({ ...prev, [name]: value }));
+                if (errors[name]) {
+                    setErrors(prev => ({ ...prev, [name]: '' }));
+                }
+            };
+
+            return (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                    <div className="bg-white rounded-xl max-w-md w-full p-6 max-h-96 overflow-y-auto">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-xl font-bold text-gray-900">Informações de Entrega</h3>
+                            <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
+                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+
+                        {/* Aviso de Taxa de Entrega */}
+                        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                            <p className="text-red-700 text-sm font-semibold">⚠️ Taxa de Entrega</p>
+                            <p className="text-red-600 text-xs mt-1">Uma taxa de {currency(DELIVERY_FEE)} será adicionada ao seu pedido. Pode haver alteração de valor na hora da entrega.</p>
+                        </div>
+
+                        <div className="space-y-3">
+                            {/* Nome */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Nome Completo *</label>
+                                <input
+                                    type="text"
+                                    name="name"
+                                    value={formData.name}
+                                    onChange={handleChange}
+                                    className={`w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-sky-500 focus:border-sky-500 ${
+                                        errors.name ? 'border-red-500' : 'border-gray-300'
+                                    }`}
+                                    placeholder="Seu nome completo"
+                                />
+                                {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
+                            </div>
+
+                            {/* Telefone */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Telefone *</label>
+                                <input
+                                    type="tel"
+                                    name="phone"
+                                    value={formData.phone}
+                                    onChange={handleChange}
+                                    className={`w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-sky-500 focus:border-sky-500 ${
+                                        errors.phone ? 'border-red-500' : 'border-gray-300'
+                                    }`}
+                                    placeholder="(11) 99999-9999"
+                                />
+                                {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone}</p>}
+                            </div>
+
+                            {/* Rua */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Rua *</label>
+                                <input
+                                    type="text"
+                                    name="street"
+                                    value={formData.street}
+                                    onChange={handleChange}
+                                    className={`w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-sky-500 focus:border-sky-500 ${
+                                        errors.street ? 'border-red-500' : 'border-gray-300'
+                                    }`}
+                                    placeholder="Rua das Flores"
+                                />
+                                {errors.street && <p className="text-red-500 text-xs mt-1">{errors.street}</p>}
+                            </div>
+
+                            {/* Número */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Número *</label>
+                                <input
+                                    type="text"
+                                    name="number"
+                                    value={formData.number}
+                                    onChange={handleChange}
+                                    className={`w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-sky-500 focus:border-sky-500 ${
+                                        errors.number ? 'border-red-500' : 'border-gray-300'
+                                    }`}
+                                    placeholder="123"
+                                />
+                                {errors.number && <p className="text-red-500 text-xs mt-1">{errors.number}</p>}
+                            </div>
+
+                            {/* Complemento */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Complemento</label>
+                                <input
+                                    type="text"
+                                    name="complement"
+                                    value={formData.complement}
+                                    onChange={handleChange}
+                                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
+                                    placeholder="Apto 42, Bloco B"
+                                />
+                            </div>
+
+                            {/* Bairro */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Bairro *</label>
+                                <input
+                                    type="text"
+                                    name="neighborhood"
+                                    value={formData.neighborhood}
+                                    onChange={handleChange}
+                                    className={`w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-sky-500 focus:border-sky-500 ${
+                                        errors.neighborhood ? 'border-red-500' : 'border-gray-300'
+                                    }`}
+                                    placeholder="Centro"
+                                />
+                                {errors.neighborhood && <p className="text-red-500 text-xs mt-1">{errors.neighborhood}</p>}
+                            </div>
+
+                            {/* Cidade */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Cidade *</label>
+                                <input
+                                    type="text"
+                                    name="city"
+                                    value={formData.city}
+                                    onChange={handleChange}
+                                    className={`w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-sky-500 focus:border-sky-500 ${
+                                        errors.city ? 'border-red-500' : 'border-gray-300'
+                                    }`}
+                                    placeholder="São Paulo"
+                                />
+                                {errors.city && <p className="text-red-500 text-xs mt-1">{errors.city}</p>}
+                            </div>
+
+                            {/* CEP */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">CEP *</label>
+                                <input
+                                    type="text"
+                                    name="zipcode"
+                                    value={formData.zipcode}
+                                    onChange={handleChange}
+                                    className={`w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-sky-500 focus:border-sky-500 ${
+                                        errors.zipcode ? 'border-red-500' : 'border-gray-300'
+                                    }`}
+                                    placeholder="01234-567"
+                                />
+                                {errors.zipcode && <p className="text-red-500 text-xs mt-1">{errors.zipcode}</p>}
+                            </div>
+                        </div>
+
+                        <div className="flex gap-3 mt-6">
+                            <button
+                                onClick={onClose}
+                                className="flex-1 bg-gray-200 text-gray-800 py-3 px-4 rounded-lg font-medium hover:bg-gray-300 transition-colors"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={handleSubmit}
+                                className="flex-1 bg-sky-500 text-white py-3 px-4 rounded-lg font-medium hover:bg-sky-600 transition-colors"
+                            >
+                                Confirmar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // Order Tracking Component
+        function OrderTracking({ tableId }) {
+            const [orders, setOrders] = useState([]);
+
+            useEffect(() => {
+                const loadOrders = () => {
+                    const allOrders = JSON.parse(localStorage.getItem('orders') || '[]');
+                    const tableOrders = allOrders
+                        .filter(order => order.table === tableId)
+                        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+                    setOrders(tableOrders);
+                };
+
+                loadOrders();
+                const interval = setInterval(loadOrders, 2000);
+                return () => clearInterval(interval);
+            }, [tableId]);
+
+            const statusColors = {
+                'Recebido': 'bg-blue-100 text-blue-800',
+                'Em preparo': 'bg-yellow-100 text-yellow-800',
+                'Pronto': 'bg-green-100 text-green-800',
+                'Entregue': 'bg-gray-100 text-gray-800'
+            };
+
+            return (
+                <div>
+                    <h3 className="text-lg font-semibold mb-4">Meus Pedidos</h3>
+                    {orders.length === 0 ? (
+                        <div className="text-center py-8">
+                            <div className="text-4xl mb-2">📋</div>
+                            <p className="text-gray-500">Nenhum pedido realizado ainda</p>
+                        </div>
+                    ) : (
+                        <div className="space-y-4">
+                            {orders.map(order => (
+                                <div key={order.id} className="border border-gray-200 rounded-lg p-4 bg-white">
+                                    <div className="flex justify-between items-start mb-3">
+                                        <div>
+                                            <h4 className="font-semibold">Pedido {order.id.split('-')[1]}</h4>
+                                            <p className="text-sm text-gray-600">
+                                                {new Date(order.createdAt).toLocaleString('pt-BR')}
+                                            </p>
+                                        </div>
+                                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColors[order.status]}`}>
+                                            {order.status}
+                                        </span>
+                                    </div>
+
+                                    <div className="mb-3 space-y-1">
+                                        {order.items.map((item, idx) => (
+                                            <div key={idx} className="text-sm">
+                                                <span>{item.qty}x {item.displayName || item.name}</span>
+                                                {item.observations && (
+                                                    <p className="text-xs text-gray-500 italic ml-4">Obs: {item.observations}</p>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    <div className="flex justify-between items-center pt-2 border-t">
+                                        <span className="font-bold text-sky-600">{currency(order.total)}</span>
+                                        {order.deliveryInfo && (
+                                            <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
+                                                🚚 Entrega
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        // Admin Panel Component
+        function AdminPanel({ onClose }) {
+            const [orders, setOrders] = useState([]);
+            const [activeAdminTab, setActiveAdminTab] = useState('orders');
+            const [searchTable, setSearchTable] = useState('');
+            const [stats, setStats] = useState({
+                totalOrders: 0,
+                paidOrders: 0,
+                pendingPayment: 0,
+                totalRevenue: 0
+            });
+
+            useEffect(() => {
+                const loadOrders = () => {
+                    const allOrders = JSON.parse(localStorage.getItem('orders') || '[]');
+                    setOrders(allOrders);
+                    
+                    // Calculate stats
+                    const paidOrders = allOrders.filter(o => o.paid);
+                    const totalRevenue = paidOrders.reduce((sum, o) => sum + o.total, 0);
+                    
+                    setStats({
+                        totalOrders: allOrders.length,
+                        paidOrders: paidOrders.length,
+                        pendingPayment: allOrders.filter(o => !o.paid).length,
+                        totalRevenue
+                    });
+                };
+
+                loadOrders();
+                const interval = setInterval(loadOrders, 2000);
+                return () => clearInterval(interval);
+            }, []);
+
+            const updateOrderStatus = (orderId, newStatus) => {
+                const updated = orders.map(order =>
+                    order.id === orderId ? { ...order, status: newStatus } : order
+                );
+                setOrders(updated);
+                localStorage.setItem('orders', JSON.stringify(updated));
+            };
+
+            const markAsPaid = (orderId) => {
+                const updated = orders.map(order =>
+                    order.id === orderId ? { ...order, paid: true, paidAt: new Date().toISOString() } : order
+                );
+                setOrders(updated);
+                localStorage.setItem('orders', JSON.stringify(updated));
+            };
+
+            const clearAllOrders = () => {
+                if (confirm('Tem certeza que deseja limpar todo o histórico de pedidos?')) {
+                    setOrders([]);
+                    localStorage.setItem('orders', JSON.stringify([]));
+                }
+            };
+
+            const printOrder = (order) => {
+                const printWindow = window.open('', '', 'height=600,width=800');
+                const deliveryInfo = order.deliveryInfo ? `
+                    <h3 style="margin-top: 15px; font-weight: bold;">Informações de Entrega:</h3>
+                    <p><strong>Nome:</strong> ${order.deliveryInfo.name}</p>
+                    <p><strong>Telefone:</strong> ${order.deliveryInfo.phone}</p>
+                    <p><strong>Endereço:</strong> ${order.deliveryInfo.street}, ${order.deliveryInfo.number}${order.deliveryInfo.complement ? ' - ' + order.deliveryInfo.complement : ''}</p>
+                    <p><strong>Bairro:</strong> ${order.deliveryInfo.neighborhood}</p>
+                    <p><strong>Cidade:</strong> ${order.deliveryInfo.city}</p>
+                    <p><strong>CEP:</strong> ${order.deliveryInfo.zipcode}</p>
+                ` : `<p style="margin-top: 15px;"><strong>Tipo:</strong> Pagar na Mesa</p>`;
+
+                const itemsHtml = order.items.map(item => `
+                    <tr>
+                        <td style="padding: 8px; border-bottom: 1px solid #ddd;">${item.qty}x</td>
+                        <td style="padding: 8px; border-bottom: 1px solid #ddd;">${item.displayName || item.name}</td>
+                        <td style="padding: 8px; border-bottom: 1px solid #ddd; text-align: right;">R$ ${(item.price * item.qty).toFixed(2).replace('.', ',')}</td>
+                    </tr>
+                    ${item.observations ? `<tr><td colspan="3" style="padding: 4px 8px; font-size: 12px; color: #666;"><em>Obs: ${item.observations}</em></td></tr>` : ''}
+                `).join('');
+
+                const html = `
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                        <title>Pedido ${order.id}</title>
+                        <style>
+                            body { font-family: Arial, sans-serif; margin: 20px; }
+                            .header { text-align: center; margin-bottom: 20px; }
+                            .order-info { margin-bottom: 15px; }
+                            table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+                            .total { text-align: right; font-weight: bold; font-size: 18px; margin-top: 15px; }
+                            .footer { text-align: center; margin-top: 30px; font-size: 12px; color: #666; }
+                        </style>
+                    </head>
+                    <body>
+                        <div class="header">
+                            <h1>🍔 CANTINA</h1>
+                            <h2>Pedido ${order.id.split('-')[1]}</h2>
+                        </div>
+                        
+                        <div class="order-info">
+                            <p><strong>Mesa:</strong> ${order.table}</p>
+                            <p><strong>Data/Hora:</strong> ${new Date(order.createdAt).toLocaleString('pt-BR')}</p>
+                            <p><strong>Status:</strong> ${order.status}</p>
+                        </div>
+
+                        <table>
+                            <thead>
+                                <tr style="background-color: #f0f0f0;">
+                                    <th style="padding: 8px; text-align: left;">Qtd</th>
+                                    <th style="padding: 8px; text-align: left;">Descrição</th>
+                                    <th style="padding: 8px; text-align: right;">Valor</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${itemsHtml}
+                            </tbody>
+                        </table>
+
+                        <div class="total">
+                            Total: R$ ${order.total.toFixed(2).replace('.', ',')}
+                        </div>
+
+                        ${deliveryInfo}
+
+                        <div class="footer">
+                            <p>Impresso em: ${new Date().toLocaleString('pt-BR')}</p>
+                        </div>
+                    </body>
+                    </html>
+                `;
+
+                printWindow.document.write(html);
+                printWindow.document.close();
+                setTimeout(() => {
+                    printWindow.print();
+                }, 250);
+            };
+
+            const statusColors = {
+                'Recebido': 'bg-blue-100 text-blue-800',
+                'Em preparo': 'bg-yellow-100 text-yellow-800',
+                'Pronto': 'bg-green-100 text-green-800',
+                'Entregue': 'bg-gray-100 text-gray-800'
+            };
+
+            const filteredOrders = orders.filter(order => 
+                order.status !== 'Entregue' && (searchTable === '' || order.table === searchTable)
+            );
+
+            return (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                    <div className="bg-white rounded-xl max-w-4xl w-full max-h-96 overflow-hidden flex flex-col">
+                        <div className="flex justify-between items-center p-6 border-b">
+                            <h2 className="text-2xl font-bold">🔧 Painel Admin</h2>
+                            <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
+                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto">
+                            <div className="p-6">
+                                {/* Tabs */}
+                                <div className="flex space-x-2 mb-6">
+                                    <button
+                                        onClick={() => setActiveAdminTab('orders')}
+                                        className={`px-4 py-2 rounded-lg font-medium ${
+                                            activeAdminTab === 'orders'
+                                                ? 'bg-sky-500 text-white'
+                                                : 'bg-gray-200 text-gray-800'
+                                        }`}
+                                    >
+                                        Pedidos Ativos
+                                    </button>
+                                    <button
+                                        onClick={() => setActiveAdminTab('payments')}
+                                        className={`px-4 py-2 rounded-lg font-medium ${
+                                            activeAdminTab === 'payments'
+                                                ? 'bg-sky-500 text-white'
+                                                : 'bg-gray-200 text-gray-800'
+                                        }`}
+                                    >
+                                        Contas
+                                    </button>
+                                    <button
+                                        onClick={() => setActiveAdminTab('reports')}
+                                        className={`px-4 py-2 rounded-lg font-medium ${
+                                            activeAdminTab === 'reports'
+                                                ? 'bg-sky-500 text-white'
+                                                : 'bg-gray-200 text-gray-800'
+                                        }`}
+                                    >
+                                        Relatórios
+                                    </button>
+                                </div>
+
+                                {/* Active Orders Tab */}
+                                {activeAdminTab === 'orders' && (
+                                    <div>
+                                        <div className="mb-4">
+                                            <input
+                                                type="text"
+                                                placeholder="Filtrar por mesa..."
+                                                value={searchTable}
+                                                onChange={(e) => setSearchTable(e.target.value)}
+                                                className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                                            />
+                                        </div>
+                                        {filteredOrders.length === 0 ? (
+                                            <p className="text-gray-500 text-center py-8">Nenhum pedido ativo</p>
+                                        ) : (
+                                            <div className="space-y-4">
+                                                {filteredOrders.map(order => (
+                                                    <div key={order.id} className="border border-gray-200 rounded-lg p-4">
+                                                        <div className="flex justify-between items-start mb-3">
+                                                            <div>
+                                                                <h4 className="font-semibold">Mesa {order.table} - {order.id.split('-')[1]}</h4>
+                                                                <p className="text-sm text-gray-600">
+                                                                    {new Date(order.createdAt).toLocaleString('pt-BR')}
+                                                                </p>
+                                                            </div>
+                                                            <div className="flex gap-2">
+                                                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColors[order.status]}`}>
+                                                                    {order.status}
+                                                                </span>
+                                                                {order.deliveryInfo && (
+                                                                    <span className="px-2 py-1 rounded-full text-xs bg-green-100 text-green-800">
+                                                                        🚚 Entrega
+                                                                    </span>
+                                                                )}
+                                                                <span className="font-bold text-sky-600">{currency(order.total)}</span>
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="mb-3">
+                                                            {order.items.map((item, idx) => (
+                                                                <div key={idx} className="mb-2">
+                                                                    <div className="flex justify-between text-sm">
+                                                                        <span>{item.qty}x {item.displayName || item.name}</span>
+                                                                        <span>{currency(item.price * item.qty)}</span>
+                                                                    </div>
+                                                                    {item.observations && (
+                                                                        <p className="text-xs text-gray-500 italic ml-4">Obs: {item.observations}</p>
+                                                                    )}
+                                                                </div>
+                                                            ))}
+                                                        </div>
+
+                                                        <div className="flex gap-2 flex-wrap">
+                                                            {order.status === 'Recebido' && (
+                                                                <button
+                                                                    onClick={() => updateOrderStatus(order.id, 'Em preparo')}
+                                                                    className="px-3 py-1 bg-blue-500 text-white rounded text-sm hover:bg-blue-600"
+                                                                >
+                                                                    Iniciar Preparo
+                                                                </button>
+                                                            )}
+                                                            {order.status === 'Em preparo' && (
+                                                                <button
+                                                                    onClick={() => updateOrderStatus(order.id, 'Pronto')}
+                                                                    className="px-3 py-1 bg-green-500 text-white rounded text-sm hover:bg-green-600"
+                                                                >
+                                                                    Marcar como Pronto
+                                                                </button>
+                                                            )}
+                                                            {order.status === 'Pronto' && (
+                                                                <button
+                                                                    onClick={() => updateOrderStatus(order.id, 'Entregue')}
+                                                                    className="px-3 py-1 bg-gray-500 text-white rounded text-sm hover:bg-gray-600"
+                                                                >
+                                                                    Marcar como Entregue
+                                                                </button>
+                                                            )}
+                                                            <button
+                                                                onClick={() => printOrder(order)}
+                                                                className="px-3 py-1 bg-purple-500 text-white rounded text-sm hover:bg-purple-600"
+                                                            >
+                                                                🖨️ Imprimir
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {/* Payments Tab */}
+                                {activeAdminTab === 'payments' && (
+                                    <div>
+                                        <div className="mb-4">
+                                            <input
+                                                type="text"
+                                                placeholder="Filtrar por mesa..."
+                                                value={searchTable}
+                                                onChange={(e) => setSearchTable(e.target.value)}
+                                                className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                                            />
+                                        </div>
+                                        {orders.filter(order => !order.paid && (searchTable === '' || order.table === searchTable)).length === 0 ? (
+                                            <div className="text-center py-8">
+                                                <div className="text-4xl mb-2">💳</div>
+                                                <p className="text-gray-500">
+                                                    {searchTable ? `Nenhuma conta pendente para a mesa ${searchTable}` : 'Nenhuma conta pendente'}
+                                                </p>
+                                            </div>
+                                        ) : (
+                                            <div className="space-y-4">
+                                                {orders
+                                                    .filter(order => !order.paid && (searchTable === '' || order.table === searchTable))
+                                                    .reduce((acc, order) => {
+                                                        const table = order.table;
+                                                        const existing = acc.find(t => t.table === table);
+                                                        if (existing) {
+                                                            existing.orders.push(order);
+                                                            existing.total += order.total;
+                                                        } else {
+                                                            acc.push({ table, orders: [order], total: order.total });
+                                                        }
+                                                        return acc;
+                                                    }, [])
+                                                    .map(tableData => (
+                                                        <div key={tableData.table} className="border border-gray-200 rounded-lg p-4">
+                                                            <div className="flex justify-between items-center mb-4">
+                                                                <h4 className="font-semibold text-lg">Mesa {tableData.table}</h4>
+                                                                <div className="text-right">
+                                                                    <p className="text-2xl font-bold text-green-600">
+                                                                        {currency(tableData.total)}
+                                                                    </p>
+                                                                    <p className="text-sm text-gray-600">
+                                                                        {tableData.orders.length} pedido(s)
+                                                                    </p>
+                                                                </div>
+                                                            </div>
+
+                                                            <div className="space-y-2 mb-4">
+                                                                {tableData.orders.map(order => (
+                                                                    <div key={order.id} className="bg-gray-50 rounded p-3">
+                                                                        <div className="flex justify-between items-start mb-2">
+                                                                            <div>
+                                                                                <span className="font-medium">Pedido {order.id.split('-')[1]}</span>
+                                                                                <span className={`ml-2 px-2 py-1 rounded-full text-xs ${statusColors[order.status]}`}>
+                                                                                    {order.status}
+                                                                                </span>
+                                                                            </div>
+                                                                            <span className="font-bold text-sky-600">{currency(order.total)}</span>
+                                                                        </div>
+                                                                        <div className="text-sm text-gray-600">
+                                                                            {order.items.map((item, idx) => (
+                                                                                <div key={idx}>
+                                                                                    {item.qty}x {item.displayName || item.name}
+                                                                                </div>
+                                                                            ))}
+                                                                        </div>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+
+                                                            <button
+                                                                onClick={() => {
+                                                                    if (confirm(`Confirmar pagamento da Mesa ${tableData.table}?\nTotal: ${currency(tableData.total)}`)) {
+                                                                        tableData.orders.forEach(order => markAsPaid(order.id));
+                                                                    }
+                                                                }}
+                                                                className="w-full bg-green-500 text-white py-3 px-4 rounded-lg font-bold hover:bg-green-600 transition-colors"
+                                                            >
+                                                                ✅ Confirmar Pagamento - {currency(tableData.total)}
+                                                            </button>
+                                                        </div>
+                                                    ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {/* Reports Tab */}
+                                {activeAdminTab === 'reports' && (
+                                    <div>
+                                        <h3 className="text-lg font-semibold mb-4">📊 Relatório do Dia</h3>
+                                        
+                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                                            <div className="bg-blue-50 p-4 rounded-lg text-center">
+                                                <div className="text-2xl font-bold text-blue-600">{stats.totalOrders}</div>
+                                                <div className="text-sm text-blue-800">Total de Pedidos</div>
+                                            </div>
+                                            <div className="bg-green-50 p-4 rounded-lg text-center">
+                                                <div className="text-2xl font-bold text-green-600">{stats.paidOrders}</div>
+                                                <div className="text-sm text-green-800">Pedidos Pagos</div>
+                                            </div>
+                                            <div className="bg-yellow-50 p-4 rounded-lg text-center">
+                                                <div className="text-2xl font-bold text-yellow-600">{stats.pendingPayment}</div>
+                                                <div className="text-sm text-yellow-800">Aguardando Pagamento</div>
+                                            </div>
+                                            <div className="bg-purple-50 p-4 rounded-lg text-center">
+                                                <div className="text-2xl font-bold text-purple-600">{currency(stats.totalRevenue)}</div>
+                                                <div className="text-sm text-purple-800">Faturamento</div>
+                                            </div>
+                                        </div>
+
+                                        <div className="mb-4 flex justify-between items-center">
+                                            <h4 className="text-md font-semibold">Todos os Pedidos de Hoje</h4>
+                                            <button
+                                                onClick={clearAllOrders}
+                                                className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 text-sm"
+                                            >
+                                                🗑️ Limpar Histórico
+                                            </button>
+                                        </div>
+
+                                        <div className="space-y-3 max-h-64 overflow-y-auto">
+                                            {orders.filter(order => 
+                                                new Date(order.createdAt).toDateString() === new Date().toDateString()
+                                            ).map(order => (
+                                                <div key={order.id} className="border border-gray-200 rounded-lg p-3 bg-white">
+                                                    <div className="flex justify-between items-start">
+                                                        <div>
+                                                            <span className="font-medium">Mesa {order.table} - {order.id.split('-')[1]}</span>
+                                                            <div className="flex gap-2 mt-1">
+                                                                <span className={`px-2 py-1 rounded-full text-xs ${statusColors[order.status]}`}>
+                                                                    {order.status}
+                                                                </span>
+                                                                {order.paid ? (
+                                                                    <span className="px-2 py-1 rounded-full text-xs bg-green-100 text-green-800">
+                                                                        ✅ Pago
+                                                                    </span>
+                                                                ) : (
+                                                                    <span className="px-2 py-1 rounded-full text-xs bg-red-100 text-red-800">
+                                                                        ❌ Pendente
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                            <p className="text-xs text-gray-500 mt-1">
+                                                                {new Date(order.createdAt).toLocaleTimeString('pt-BR')}
+                                                                {order.paid && order.paidAt && (
+                                                                    <span> • Pago às {new Date(order.paidAt).toLocaleTimeString('pt-BR')}</span>
+                                                                )}
+                                                            </p>
+                                                        </div>
+                                                        <span className="font-bold text-sky-600">{currency(order.total)}</span>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // Main App Component
+        function App() {
+            const [tableId, setTableId] = useTableId();
+            const [activeTab, setActiveTab] = useState('menu');
+            const [category, setCategory] = useState(CATEGORIES[0]);
+            const [cart, setCart] = useState([]);
+            const [order, setOrder] = useState(null);
+            const [showAdmin, setShowAdmin] = useState(false);
+            const [showTableInput, setShowTableInput] = useState(false);
+            const [manualTableId, setManualTableId] = useState('');
+            const [customizationModal, setCustomizationModal] = useState(null);
+            const [deliveryModal, setDeliveryModal] = useState(false);
+            const [currentMenu, setCurrentMenu] = useState(MENU);
+
+            useEffect(() => {
+                const savedMenu = localStorage.getItem('customMenu');
+                if (savedMenu) {
+                    setCurrentMenu(JSON.parse(savedMenu));
+                }
+            }, []);
+
+            useEffect(() => {
+                if (tableId) {
+                    const saved = localStorage.getItem(`cart_table_${tableId}`);
+                    if (saved) setCart(JSON.parse(saved));
+                }
+            }, [tableId]);
+
+            useEffect(() => {
+                if (tableId) localStorage.setItem(`cart_table_${tableId}`, JSON.stringify(cart));
+            }, [cart, tableId]);
+
+            const openCustomization = (item) => {
+                setCustomizationModal(item);
+            };
+
+            const addToCart = (item) => {
+                setCart(prev => {
+                    const existing = prev.find(i => 
+                        (i.customId && i.customId === item.customId) || 
+                        (!i.customId && !item.customId && i.id === item.id)
+                    );
+                    if (existing) {
+                        return prev.map(i => 
+                            ((i.customId && i.customId === item.customId) || 
+                             (!i.customId && !item.customId && i.id === item.id))
+                                ? { ...i, qty: i.qty + 1 } 
+                                : i
+                        );
+                    }
+                    return [...prev, { ...item, qty: 1 }];
+                });
+            };
+
+            const updateCartQty = (item, newQty) => {
+                if (newQty <= 0) {
+                    setCart(prev => prev.filter(i => 
+                        !((i.customId && i.customId === item.customId) || 
+                          (!i.customId && !item.customId && i.id === item.id))
+                    ));
+                } else {
+                    setCart(prev => prev.map(i => 
+                        ((i.customId && i.customId === item.customId) || 
+                         (!i.customId && !item.customId && i.id === item.id))
+                            ? { ...i, qty: newQty } 
+                            : i
+                    ));
+                }
+            };
+
+            const placeOrder = (paymentMethod = 'Pagar na Mesa', deliveryInfo = null) => {
+                if (!tableId) return alert('Não foi possível identificar a mesa.');
+                if (cart.length === 0) return alert('Carrinho vazio.');
+
+                let orderTotal = cart.reduce((s, i) => s + i.price * i.qty, 0);
+                
+                // Adiciona taxa de entrega se for entrega
+                if (deliveryInfo) {
+                    orderTotal += DELIVERY_FEE;
+                }
+
+                const newOrder = {
+                    id: `ORD-${Date.now()}`,
+                    table: tableId,
+                    items: cart,
+                    total: orderTotal,
+                    paymentMethod,
+                    deliveryInfo,
+                    status: 'Recebido',
+                    createdAt: new Date().toISOString(),
+                };
+
+                const all = JSON.parse(localStorage.getItem('orders') || '[]');
+                all.push(newOrder);
+                localStorage.setItem('orders', JSON.stringify(all));
+
+                setOrder(newOrder);
+                setCart([]);
+                setActiveTab('orders');
+            };
+
+            const setManualTable = () => {
+                if (manualTableId) {
+                    setTableId(manualTableId);
+                    setShowTableInput(false);
+                    const newUrl = `${window.location.pathname}?table=${manualTableId}`;
+                    window.history.pushState({}, '', newUrl);
+                }
+            };
+
+            const filteredMenu = currentMenu.filter(item => item.category === category);
+            const cartTotal = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
+            const cartCount = cart.reduce((sum, item) => sum + item.qty, 0);
+
+            // Landing page when no table is selected
+            if (!tableId) {
+                return (
+                    <div className="min-h-screen bg-gradient-to-br from-sky-500 to-blue-600 flex items-center justify-center p-4">
+                        <div className="text-center">
+                            <div className="text-6xl mb-4">🍔</div>
+                            <h1 className="text-3xl font-bold text-gray-900 mb-2">Cantina</h1>
+                            <p className="text-gray-600 mb-8">Sabor que conecta momentos.</p>
+                            
+                            <div className="space-y-4">
+                                <button
+                                    onClick={() => setShowTableInput(true)}
+                                    className="w-full bg-sky-500 text-white py-3 px-6 rounded-lg font-semibold hover:bg-sky-600 transition-colors"
+                                >
+                                    Acessar Mesa
+                                </button>
+                                
+                                <button
+                                    onClick={() => setShowAdmin(true)}
+                                    className="w-full bg-yellow-400 text-gray-900 py-3 px-6 rounded-lg font-semibold hover:bg-yellow-500 transition-colors"
+                                >
+                                    Painel Admin
+                                </button>
+                            </div>
+
+                            {showTableInput && (
+                                <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+                                    <h3 className="font-semibold mb-3">Digite o número da sua mesa:</h3>
+                                    <div className="flex gap-2">
+                                        <input
+                                            type="number"
+                                            value={manualTableId}
+                                            onChange={(e) => setManualTableId(e.target.value)}
+                                            className="flex-1 border border-gray-300 rounded-lg px-3 py-2"
+                                            placeholder="Ex: 5"
+                                        />
+                                        <button
+                                            onClick={setManualTable}
+                                            className="bg-sky-500 text-white px-4 py-2 rounded-lg hover:bg-sky-600"
+                                        >
+                                            OK
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {showAdmin && <AdminPanel onClose={() => setShowAdmin(false)} />}
+                    </div>
+                );
+            }
+
+            // Order confirmation screen
+            if (order) {
+                return (
+                    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+                        <div className="bg-white rounded-2xl shadow-lg p-8 max-w-md w-full text-center">
+                            <div className="text-6xl mb-4">✅</div>
+                            <h2 className="text-2xl font-bold text-gray-900 mb-2">Pedido Confirmado!</h2>
+                            <p className="text-gray-600 mb-6">Mesa {order.table} - {order.id.split('-')[1]}</p>
+                            
+                            <div className="bg-gray-50 rounded-lg p-4 mb-6">
+                                <h3 className="font-semibold mb-2">Resumo do Pedido:</h3>
+                                {order.items.map((item, idx) => (
+                                    <div key={idx} className="mb-2">
+                                        <div className="flex justify-between text-sm">
+                                            <span>{item.qty}x {item.displayName || item.name}</span>
+                                            <span>{currency(item.price * item.qty)}</span>
+                                        </div>
+                                        {item.observations && (
+                                            <p className="text-xs text-gray-500 italic text-left">Obs: {item.observations}</p>
+                                        )}
+                                    </div>
+                                ))}
+                                {order.deliveryInfo && (
+                                    <div className="border-t pt-2 mt-2">
+                                        <div className="flex justify-between text-sm font-semibold">
+                                            <span>Taxa de Entrega:</span>
+                                            <span>{currency(DELIVERY_FEE)}</span>
+                                        </div>
+                                    </div>
+                                )}
+                                <div className="border-t pt-2 mt-2 font-bold">
+                                    Total: {currency(order.total)}
+                                </div>
+                                {order.deliveryInfo && (
+                                    <div className="mt-3 pt-3 border-t text-left text-sm">
+                                        <p className="font-semibold mb-1">🚚 Entrega para:</p>
+                                        <p>{order.deliveryInfo.name}</p>
+                                        <p>{order.deliveryInfo.street}, {order.deliveryInfo.number}</p>
+                                        <p>{order.deliveryInfo.neighborhood} - {order.deliveryInfo.city}</p>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="text-sm text-gray-600 mb-6">
+                                <p className="mb-2">Status: <span className="font-semibold text-yellow-600">{order.status}</span></p>
+                                <p>Tempo estimado: 15-20 minutos</p>
+                            </div>
+
+                            <button
+                                onClick={() => setOrder(null)}
+                                className="w-full bg-sky-500 text-white py-3 px-6 rounded-lg font-semibold hover:bg-sky-600 transition-colors"
+                            >
+                                Continuar Navegando
+                            </button>
+                        </div>
+                    </div>
+                );
+            }
+
+            // Main ordering interface
+            return (
+                <div className="min-h-screen bg-gray-50">
+                    {/* Header */}
+                    <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-40">
+                        <div className="max-w-4xl mx-auto px-4 py-4">
+                            <div className="flex justify-between items-center">
+                                <div>
+                                    <h1 className="text-xl font-bold text-gray-900">🍔 Cantina</h1>
+                                    <p className="text-sm text-gray-600">Mesa {tableId}</p>
+                                </div>
+                                {cartCount > 0 && (
+                                    <div className="bg-sky-500 text-white px-3 py-1 rounded-full text-sm font-semibold">
+                                        {cartCount} {cartCount === 1 ? 'item' : 'itens'}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </header>
+
+                    {/* Tab Navigation */}
+                    <div className="bg-white border-b border-gray-200 sticky top-16 z-30">
+                        <div className="max-w-4xl mx-auto px-4">
+                            <div className="flex space-x-1 py-2">
+                                <button
+                                    onClick={() => setActiveTab('menu')}
+                                    className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                                        activeTab === 'menu'
+                                            ? 'bg-sky-500 text-white'
+                                            : 'text-gray-600 hover:bg-gray-100'
+                                    }`}
+                                >
+                                    Cardápio
+                                </button>
+                                <button
+                                    onClick={() => setActiveTab('orders')}
+                                    className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                                        activeTab === 'orders'
+                                            ? 'bg-sky-500 text-white'
+                                            : 'text-gray-600 hover:bg-gray-100'
+                                    }`}
+                                >
+                                    Meus Pedidos
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Content */}
+                    <main className="max-w-4xl mx-auto px-4 py-6">
+                        {activeTab === 'menu' && (
+                            <>
+                                {/* Category Tabs */}
+                                <div className="flex space-x-1 mb-6 overflow-x-auto pb-2">
+                                    {CATEGORIES.map(cat => (
+                                        <button
+                                            key={cat}
+                                            onClick={() => setCategory(cat)}
+                                            className={`px-4 py-2 rounded-lg font-medium transition-colors whitespace-nowrap ${
+                                                category === cat
+                                                    ? 'bg-yellow-400 text-gray-900'
+                                                    : 'text-gray-600 hover:bg-gray-100'
+                                            }`}
+                                        >
+                                            {cat}
+                                        </button>
+                                    ))}
+                                </div>
+
+                                {/* Menu Items */}
+                                <div className="grid gap-4 md:grid-cols-2">
+                                    {filteredMenu.map(item => (
+                                        <div key={item.id} className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 hover:shadow-md transition-shadow">
+                                            <div className="flex items-start gap-4">
+                                                <div className="text-3xl">{item.emoji}</div>
+                                                <div className="flex-1">
+                                                    <h3 className="font-semibold text-gray-900 mb-1">{item.name}</h3>
+                                                    <p className="text-sm text-gray-600 mb-2">{item.desc}</p>
+                                                    <div className="flex justify-between items-center">
+                                                        <span className="text-lg font-bold text-sky-600">{currency(item.price)}</span>
+                                                        <button
+                                                            onClick={() => openCustomization(item)}
+                                                            className="bg-sky-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-sky-600 transition-colors"
+                                                        >
+                                                            Adicionar
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </>
+                        )}
+
+                        {activeTab === 'orders' && (
+                            <OrderTracking tableId={tableId} />
+                        )}
+                    </main>
+
+                    {/* Cart */}
+                    {cart.length > 0 && activeTab === 'menu' && (
+                        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-50">
+                            <div className="max-w-4xl mx-auto px-4 py-4">
+                                <div className="space-y-3">
+                                    {cart.map((item, idx) => (
+                                        <div key={idx} className="flex justify-between items-center">
+                                            <div className="flex-1">
+                                                <span className="font-medium">{item.displayName || item.name}</span>
+                                                <span className="text-gray-600 ml-2">{currency(item.price)}</span>
+                                                {item.observations && (
+                                                    <p className="text-xs text-gray-500 italic">Obs: {item.observations}</p>
+                                                )}
+                                            </div>
+                                            <div className="flex items-center gap-3">
+                                                <button
+                                                    onClick={() => updateCartQty(item, item.qty - 1)}
+                                                    className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center hover:bg-gray-300"
+                                                >
+                                                    -
+                                                </button>
+                                                <span className="w-6 text-center font-semibold">{item.qty}</span>
+                                                <button
+                                                    onClick={() => updateCartQty(item, item.qty + 1)}
+                                                    className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center hover:bg-gray-300"
+                                                >
+                                                    +
+                                                </button>
+                                                <span className="w-20 text-right font-bold text-sky-600">
+                                                    {currency(item.price * item.qty)}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    ))}
+                                    
+                                    <div className="border-t pt-3 flex justify-between items-center">
+                                        <span className="text-lg font-bold">Total: {currency(cartTotal)}</span>
+                                        <div className="flex gap-2">
+                                            <button
+                                                onClick={() => setDeliveryModal(true)}
+                                                className="bg-green-500 text-white px-4 py-3 rounded-lg font-bold hover:bg-green-600 transition-colors"
+                                            >
+                                                🚚 Entrega
+                                            </button>
+                                            <button
+                                                onClick={() => placeOrder('Pagar na Mesa')}
+                                                className="bg-yellow-400 text-gray-900 px-6 py-3 rounded-lg font-bold hover:bg-yellow-500 transition-colors"
+                                            >
+                                                Finalizar Pedido
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Customization Modal */}
+                    {customizationModal && (
+                        <CustomizationModal
+                            item={customizationModal}
+                            onClose={() => setCustomizationModal(null)}
+                            onAdd={addToCart}
+                        />
+                    )}
+
+                    {/* Delivery Modal */}
+                    {deliveryModal && (
+                        <DeliveryModal
+                            onClose={() => setDeliveryModal(false)}
+                            onConfirm={(deliveryInfo) => {
+                                placeOrder('Entrega', deliveryInfo);
+                                setDeliveryModal(false);
+                            }}
+                        />
+                    )}
+                </div>
+            );
+        }
+
+        ReactDOM.render(<App />, document.getElementById('root'));
+    </script>
+</body>
+</html>
